@@ -119,5 +119,7 @@ build_prompt() {
   prompt_end
 }
 
+MODE_INDICATOR=INSERT
+
 setopt PROMPT_SUBST
 PROMPT="%{%f%b%k%}$(build_prompt) "
