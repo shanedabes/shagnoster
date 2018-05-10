@@ -85,8 +85,8 @@ prompt_end() {
 
 # Context: user@hostname (who am I and where am I)
 prompt_context() {
-  if [[ "$USER" != "$DEFAULT_USER" || -n "$SSH_CLIENT" ]]; then
-    prompt_segment black default "%(!.%{%F{yellow}%}.)$USER"
+  if $HOST_IN_PROMPT && [[ -n "$SSH_CLIENT" ]]; then
+    prompt_segment black default "%(!.%{%F{yellow}%}.)$HOST"
     FIRST=false
   fi
 }
@@ -113,8 +113,8 @@ prompt_newline() {
 
 ## Main prompt
 build_prompt() {
+  prompt_context
   prompt_virtualenv
-  # prompt_context
   prompt_dir
   prompt_end
 }
