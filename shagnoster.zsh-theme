@@ -3,7 +3,8 @@ precmd() {
 }
 
 () {
-    SEGMENT_SEPARATOR=$'\ue0b0'
+    # SEGMENT_SEPARATOR=$'\ue0b0'
+    SEGMENT_SEPARATOR=' '
     FIRST=true
 }
 
@@ -35,10 +36,7 @@ shrink_path () {
       cd /
     }
     for dir in $tree; {
-      if (( $#tree == 1 )) {
-        result+="/$tree"
-        break
-      }
+      if (( $#tree == 1 )) { result+="/$tree"; break; }
       expn=(a b)
       part=''
       i=0
@@ -54,6 +52,55 @@ shrink_path () {
     }
     echo $icon ${result:-/}
   )
+}
+
+gitprompt() {
+    git status --branch --porcelain=v2 2>&1 | awk '
+        BEGIN {
+            fatal = 0;
+            oid = "";
+            head = "";
+            ahead = 0;
+            behind = 0;
+            untracked = 0;
+            unmerged = 0;
+            staged = 0;
+            unstaged = 0;
+        }
+
+        $1 == "fatal:" { fatal = 1; }
+        $2 == "branch.oid" { oid = $3; }
+        $2 == "branch.head" { head = $3; }
+        $2 == "branch.ab" { ahead = $3; behind = $4; }
+        $1 == "?" { ++untracked; }
+        $1 == "u" { ++unmerged; }
+
+        $1 == "1" || $1 == "2" {
+            split($2, arr, "");
+            if (arr[1] != ".") { ++staged; }
+            if (arr[2] != ".") { ++unstaged; }
+        }
+
+        END {
+            if (fatal == 1) { exit(1); }
+
+            printf "%s ", ""
+
+            if (head == "(detached)") {
+                printf ":%s ", substr(oid, 0, 7);
+            } else {
+                printf "%s ", head;
+            }
+
+            if (behind < 0) { printf "↓%d", behind * -1; }
+            if (ahead > 0) { printf "↑%d", ahead; }
+            if (unmerged > 0) { printf "✖%d", unmerged; }
+            if (staged > 0) { printf "●%d", staged; }
+            if (unstaged > 0) { printf "%d", unstaged; }
+            if (untracked > 0) { printf "…%d", untracked; }
+            if (unmerged == 0 && staged == 0 && unstaged == 0 && untracked == 0) { printf "✔" }
+        }
+    '
 }
 
 # Begin a segment
@@ -93,17 +140,27 @@ prompt_context() {
 
 # Dir: current working directory
 prompt_dir() {
-  # prompt_segment blue black '%~'
-  prompt_segment blue black '$(shrink_path -l -t)'
+  # prompt_segment blue default '%~'
+  prompt_segment black blue '$(shrink_path -l -t)'
 }
 
 # Virtualenv: current working virtualenv
 prompt_virtualenv() {
   local virtualenv_path="$VIRTUAL_ENV"
   if [[ -n $virtualenv_path ]]; then
-    prompt_segment yellow black " $(basename $virtualenv_path)"
+    prompt_segment black yellow " $(basename $virtualenv_path)"
     FIRST=false
   fi
+}
+
+prompt_git() {
+    # local gp=$(gitprompt)
+    # [[ ! -z "$gp" ]] && {
+        # prompt_segment red black " ${gp}"
+        # FIRST=false
+    # }
+    prompt_segment black red '$(gitprompt)' 
+    FIRST=false
 }
 
 prompt_newline() {
@@ -115,11 +172,16 @@ prompt_newline() {
 build_prompt() {
   prompt_context
   prompt_virtualenv
+  prompt_git
   prompt_dir
   prompt_end
+}
+
+build_rprompt() {
 }
 
 MODE_INDICATOR="NORMAL"
 
 setopt PROMPT_SUBST
-PROMPT="%{%f%b%k%}$(build_prompt) "
+PROMPT="%{%f%b%k%}$(build_prompt)"
+RPROMPT="$(build_rprompt)"
